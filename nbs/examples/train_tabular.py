@@ -13,12 +13,21 @@ def pr(s):
     if rank_distrib()==0: print(s)
 
 def get_dls(path):
-    dls = TabularDataLoaders.from_csv(path/'adult.csv', path=path, y_names="salary",
-        cat_names = ['workclass', 'education', 'marital-status', 'occupation',
-                 'relationship', 'race'],
-        cont_names = ['age', 'fnlwgt', 'education-num'],
-        procs = [Categorify, FillMissing, Normalize])
-    return dls
+    return TabularDataLoaders.from_csv(
+        path / 'adult.csv',
+        path=path,
+        y_names="salary",
+        cat_names=[
+            'workclass',
+            'education',
+            'marital-status',
+            'occupation',
+            'relationship',
+            'race',
+        ],
+        cont_names=['age', 'fnlwgt', 'education-num'],
+        procs=[Categorify, FillMissing, Normalize],
+    )
 
 @call_parse
 def main(

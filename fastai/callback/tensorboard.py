@@ -32,7 +32,7 @@ class TensorBoardBaseCallback(Callback):
 
     def _setup_projector(self):
         self.run_projector = True
-        self.h = hook_output(self.learn.model[1][1] if not self.layer else self.layer)
+        self.h = hook_output(self.layer or self.learn.model[1][1])
         self.feat = {}
 
     def _setup_writer(self): self.writer = SummaryWriter(log_dir=self.log_dir)
@@ -101,7 +101,7 @@ def _write_projector_embedding(learn, writer, feat):
 # Cell
 def _add_projector_features(learn, hook, feat):
     img = _normalize_for_projector(learn.x)
-    first_epoch = True if learn.iter == 0 else False
+    first_epoch = learn.iter == 0
     feat['vec'] = hook.stored if first_epoch else torch.cat((feat['vec'], hook.stored),0)
     feat['img'] = img           if first_epoch else torch.cat((feat['img'], img),0)
     if getattr(learn.dl, 'vocab', None):
@@ -110,7 +110,7 @@ def _add_projector_features(learn, hook, feat):
 
 # Cell
 def _get_embeddings(model, layer):
-    layer = model[0].encoder if layer == None else layer
+    layer = model[0].encoder if layer is None else layer
     return layer.weight
 
 # Cell
@@ -136,7 +136,7 @@ def projector_word_embeddings(learn=None, layer=None, vocab=None, limit=-1, star
         elif isinstance(learn, TextLearner): layer = learn.model[0].module.encoder
     emb = layer.weight
     img = torch.full((len(emb),3,8,8), 0.7)
-    vocab = learn.dls.vocab[0] if vocab == None else vocab
+    vocab = learn.dls.vocab[0] if vocab is None else vocab
     vocab = list(map(lambda x: f'{x}_', vocab))
     writer = SummaryWriter(log_dir=log_dir)
     end = start + limit if limit >= 0 else -1

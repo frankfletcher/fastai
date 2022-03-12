@@ -239,7 +239,8 @@ class ConvLayer(nn.Sequential):
     @delegates(nn.Conv2d)
     def __init__(self, ni, nf, ks=3, stride=1, padding=None, bias=None, ndim=2, norm_type=NormType.Batch, bn_1st=True,
                  act_cls=defaults.activation, transpose=False, init='auto', xtra=None, bias_std=0.01, **kwargs):
-        if padding is None: padding = ((ks-1)//2 if not transpose else 0)
+        if padding is None:
+            padding = 0 if transpose else (ks-1)//2
         bn = norm_type in (NormType.Batch, NormType.BatchZero)
         inn = norm_type in (NormType.Instance, NormType.InstanceZero)
         if bias is None: bias = not (bn or inn)
@@ -516,20 +517,17 @@ class TimeDistributed(Module):
         "input x with shape:(bs,seq_len,channels,width,height)"
         if self.low_mem or self.tdim!=1:
             return self.low_mem_forward(*tensors, **kwargs)
-        else:
-            #only support tdim=1
-            inp_shape = tensors[0].shape
-            bs, seq_len = inp_shape[0], inp_shape[1]
-            out = self.module(*[x.view(bs*seq_len, *x.shape[2:]) for x in tensors], **kwargs)
+        #only support tdim=1
+        inp_shape = tensors[0].shape
+        bs, seq_len = inp_shape[0], inp_shape[1]
+        out = self.module(*[x.view(bs*seq_len, *x.shape[2:]) for x in tensors], **kwargs)
         return self.format_output(out, bs, seq_len)
 
     def low_mem_forward(self, *tensors, **kwargs):
         "input x with shape:(bs,seq_len,channels,width,height)"
         seq_len = tensors[0].shape[self.tdim]
         args_split = [torch.unbind(x, dim=self.tdim) for x in tensors]
-        out = []
-        for i in range(seq_len):
-            out.append(self.module(*[args[i] for args in args_split]), **kwargs)
+        out = [self.module(*[args[i] for args in args_split]) for i in range(seq_len)]
         if isinstance(out[0], tuple):
             return _stack_tups(out, stack_dim=self.tdim)
         return torch.stack(out, dim=self.tdim)
@@ -617,7 +615,7 @@ class ParameterModule(Module):
 def children_and_parameters(m):
     "Return the children of `m` and its direct parameters not registered in modules."
     children = list(m.children())
-    children_p = sum([[id(p) for p in c.parameters()] for c in m.children()],[])
+    children_p = sum(([id(p) for p in c.parameters()] for c in m.children()), [])
     for p in m.parameters():
         if id(p) not in children_p: children.append(ParameterModule(p))
     return children
@@ -639,11 +637,11 @@ class NoneReduce():
     def __init__(self, loss_func): self.loss_func,self.old_red = loss_func,None
 
     def __enter__(self):
-        if hasattr(self.loss_func, 'reduction'):
-            self.old_red = self.loss_func.reduction
-            self.loss_func.reduction = 'none'
-            return self.loss_func
-        else: return partial(self.loss_func, reduction='none')
+        if not hasattr(self.loss_func, 'reduction'):
+            return partial(self.loss_func, reduction='none')
+        self.old_red = self.loss_func.reduction
+        self.loss_func.reduction = 'none'
+        return self.loss_func
 
     def __exit__(self, type, value, traceback):
         if self.old_red is not None: self.loss_func.reduction = self.old_red

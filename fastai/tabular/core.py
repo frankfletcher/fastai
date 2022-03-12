@@ -28,12 +28,16 @@ def add_datepart(df, field_name, prefix=None, drop=True, time=False):
     prefix = ifnone(prefix, re.sub('[Dd]ate$', '', field_name))
     attr = ['Year', 'Month', 'Week', 'Day', 'Dayofweek', 'Dayofyear', 'Is_month_end', 'Is_month_start',
             'Is_quarter_end', 'Is_quarter_start', 'Is_year_end', 'Is_year_start']
-    if time: attr = attr + ['Hour', 'Minute', 'Second']
+    if time:
+        attr += ['Hour', 'Minute', 'Second']
     # Pandas removed `dt.week` in v1.1.10
     week = field.dt.isocalendar().week.astype(field.dt.day.dtype) if hasattr(field.dt, 'isocalendar') else field.dt.week
     for n in attr: df[prefix + n] = getattr(field.dt, n.lower()) if n != 'Week' else week
     mask = ~field.isna()
-    df[prefix + 'Elapsed'] = np.where(mask,field.values.astype(np.int64) // 10 ** 9,np.nan)
+    df[f'{prefix}Elapsed'] = np.where(
+        mask, field.values.astype(np.int64) // 10 ** 9, np.nan
+    )
+
     if drop: df.drop(field_name, axis=1, inplace=True)
     return df
 
@@ -64,7 +68,7 @@ def add_elapsed_times(df, field_names, date_field, base_field):
     work_df = work_df.sort_values([base_field, date_field], ascending=[True, False])
     work_df = _get_elapsed(work_df, field_names, date_field, base_field, 'Before')
 
-    for a in ['After' + f for f in field_names] + ['Before' + f for f in field_names]:
+    for a in [f'After{f}' for f in field_names] + [f'Before{f}' for f in field_names]:
         work_df[a] = work_df[a].fillna(0).astype(int)
 
     for a,s in zip([True, False], ['_bw', '_fw']):
@@ -203,9 +207,11 @@ class TabularPandas(Tabular):
 # Cell
 def _add_prop(cls, nm):
     @property
-    def f(o): return o[list(getattr(o,nm+'_names'))]
+    def f(o):
+        return o[list(getattr(o, f'{nm}_names'))]
     @f.setter
-    def fset(o, v): o[getattr(o,nm+'_names')] = v
+    def fset(o, v):
+        o[getattr(o, f'{nm}_names')] = v
     setattr(cls, nm+'s', f)
     setattr(cls, nm+'s', fset)
 
@@ -227,10 +233,12 @@ class TabularProc(InplaceTransform):
     def name(self): return f"{super().name} -- {getattr(self,'__stored_args__',{})}"
 
 # Cell
-def _apply_cats (voc, add, c):
-    if not is_categorical_dtype(c):
-        return pd.Categorical(c, categories=voc[c.name][add:]).codes+add
-    return c.cat.codes+add #if is_categorical_dtype(c) else c.map(voc[c.name].o2i)
+def _apply_cats(voc, add, c):
+    return (
+        c.cat.codes + add
+        if is_categorical_dtype(c)
+        else pd.Categorical(c, categories=voc[c.name][add:]).codes + add
+    )
 def _decode_cats(voc, c): return c.map(dict(enumerate(voc[c.name].items)))
 
 # Cell
@@ -309,8 +317,9 @@ class FillMissing(TabularProc):
         for n in self.na_dict.keys():
             to[n].fillna(self.na_dict[n], inplace=True)
             if self.add_col:
-                to.loc[:,n+'_na'] = missing[n]
-                if n+'_na' not in to.cat_names: to.cat_names.append(n+'_na')
+                to.loc[:, f'{n}_na'] = missing[n]
+                if f'{n}_na' not in to.cat_names:
+                    to.cat_names.append(f'{n}_na')
 
 # Cell
 def _maybe_expand(o): return o[:,None] if o.ndim==1 else o
@@ -321,8 +330,12 @@ class ReadTabBatch(ItemTransform):
     def __init__(self, to): self.to = to.new_empty()
 
     def encodes(self, to):
-        if not to.with_cont: res = (tensor(to.cats).long(),)
-        else: res = (tensor(to.cats).long(),tensor(to.conts).float())
+        res = (
+            (tensor(to.cats).long(), tensor(to.conts).float())
+            if to.with_cont
+            else (tensor(to.cats).long(),)
+        )
+
         ys = [n for n in to.y_names if n in to.items.columns]
         if len(ys) == len(to.y_names): res = res + (tensor(to.targ),)
         if to.device is not None: res = to_device(res, to.device)
@@ -333,8 +346,7 @@ class ReadTabBatch(ItemTransform):
         vals = np.concatenate(o, axis=1)
         try: df = pd.DataFrame(vals, columns=self.to.all_col_names)
         except: df = pd.DataFrame(vals, columns=self.to.x_names)
-        to = self.to.new(df)
-        return to
+        return self.to.new(df)
 
 # Cell
 @typedispatch

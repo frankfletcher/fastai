@@ -137,9 +137,9 @@ class HookCallback(Callback):
 # Cell
 def total_params(m):
     "Give the number of parameters of a module and if it's trainable or not"
-    params = sum([p.numel() for p in m.parameters()])
+    params = sum(p.numel() for p in m.parameters())
     trains = [p.requires_grad for p in m.parameters()]
-    return params, (False if len(trains)==0 else trains[0])
+    return params, trains[0] if trains else False
 
 # Cell
 def layer_info(learn, *xb):
@@ -189,7 +189,7 @@ def module_summary(learn, *xb):
         if sz is None: continue
         if j == 0:
             res += f'\n{"":<20} {_print_shapes(sz, bs)[:19]:<20}' # to avoid a double line at the top
-        if not chnged and not prev_sz == sz and j > 0: res += "\n" + "_" * n + "\n" + f'{"":<20} {_print_shapes(sz, bs)[:19]:<20}'
+        if not chnged and prev_sz != sz and j > 0: res += "\n" + "_" * n + "\n" + f'{"":<20} {_print_shapes(sz, bs)[:19]:<20}'
         j = 1
         res += f"\n{typ:<20} {'':<20} {np:<10} {str(trn):<10}"
         if np != '':
@@ -210,7 +210,12 @@ def summary(self:Learner):
     res = module_summary(self, *xb)
     res += f"Optimizer used: {self.opt_func}\nLoss function: {self.loss_func}\n\n"
     if self.opt is not None:
-        res += f"Model " + ("unfrozen\n\n" if self.opt.frozen_idx==0 else f"frozen up to parameter group #{self.opt.frozen_idx}\n\n")
+        res += "Model " + (
+            "unfrozen\n\n"
+            if self.opt.frozen_idx == 0
+            else f"frozen up to parameter group #{self.opt.frozen_idx}\n\n"
+        )
+
     res += "Callbacks:\n" + '\n'.join(f"  - {cb}" for cb in self.cbs.sorted('order'))
     return PrettyString(res)
 
@@ -238,18 +243,17 @@ class ActivationStats(HookCallback):
 
     def hook_multi_ouput(self,o_tuple):
         "For outputs of RNN which are [nested] tuples of tensors"
-        res = []
-        for o in self._flatten_tuple(o_tuple):
-            if not(isinstance(o, Tensor)): continue
-            res.append(self.hook(None, None, o))
-        return res
+        return [
+            self.hook(None, None, o)
+            for o in self._flatten_tuple(o_tuple)
+            if (isinstance(o, Tensor))
+        ]
 
     def _flatten_tuple(self, o_tuple):
         "Recursively flatten a [nested] tuple"
         res = []
         for it in o_tuple:
-            if isinstance(it, tuple): res += self._flatten_tuple(it)
-            else: res += [it]
+            res += self._flatten_tuple(it) if isinstance(it, tuple) else [it]
         return tuple(res)
 
     def after_batch(self):

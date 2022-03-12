@@ -18,8 +18,10 @@ import importlib
 
 # Cell
 def pytorch_doc_link(name):
-    if name.startswith('F'): name = 'torch.nn.functional' + name[1:]
-    if not name.startswith('torch.'): name = 'torch.' + name
+    if name.startswith('F'):
+        name = f'torch.nn.functional{name[1:]}'
+    if not name.startswith('torch.'):
+        name = f'torch.{name}'
     if name == 'torch.Tensor': return f'{PYTORCH_URL}tensors.html'
     try:
         mod = importlib.import_module(name)

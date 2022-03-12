@@ -20,9 +20,8 @@ import posixpath
 # Cell
 def _get_files(p, fs, extensions=None):
     p = Path(p)
-    res = [p/f for f in fs if not f.startswith('.')
+    return [p/f for f in fs if not f.startswith('.')
            and ((not extensions) or f'.{f.split(".")[-1].lower()}' in extensions)]
-    return res
 
 # Cell
 def get_files(path, extensions=None, recurse=True, folders=None, followlinks=True):
@@ -51,7 +50,9 @@ def FileGetter(suf='', extensions=None, recurse=True, folders=None):
     return _inner
 
 # Cell
-image_extensions = set(k for k,v in mimetypes.types_map.items() if v.startswith('image/'))
+image_extensions = {
+    k for k, v in mimetypes.types_map.items() if v.startswith('image/')
+}
 
 # Cell
 def get_image_files(path, recurse=True, folders=None):
@@ -204,7 +205,12 @@ class ColReader(DisplayedTransform):
         self.cols = L(cols)
 
     def _do_one(self, r, c):
-        o = r[c] if isinstance(c, int) or not c in getattr(r, '_fields', []) else getattr(r, c)
+        o = (
+            r[c]
+            if isinstance(c, int) or c not in getattr(r, '_fields', [])
+            else getattr(r, c)
+        )
+
         if len(self.pref)==0 and len(self.suff)==0 and self.label_delim is None: return o
         if self.label_delim is None: return f'{self.pref}{o}{self.suff}'
         else: return o.split(self.label_delim) if len(o)>0 else []
@@ -226,7 +232,7 @@ class CategoryMap(CollBase):
             # `o==o` is the generalized definition of non-NaN used by Pandas
             items = L(o for o in col.unique() if o==o)
             if sort: items = items.sorted()
-        self.items = '#na#' + items if add_na else items
+        self.items = f'#na#{items}' if add_na else items
         self.o2i = defaultdict(int, self.items.val2idx()) if add_na else dict(self.items.val2idx())
 
     def map_objs(self,objs):
@@ -265,7 +271,8 @@ class Category(str, ShowTitle): _show_args = {'label': 'category'}
 class MultiCategorize(Categorize):
     "Reversible transform of multi-category strings to `vocab` id"
     loss_func,order=BCEWithLogitsLossFlat(),1
-    def __init__(self, vocab=None, add_na=False): super().__init__(vocab=vocab,add_na=add_na,sort=vocab==None)
+    def __init__(self, vocab=None, add_na=False):
+        super().__init__(vocab=vocab, add_na=add_na, sort=vocab is None)
 
     def setups(self, dsets):
         if not dsets: return
@@ -275,7 +282,7 @@ class MultiCategorize(Categorize):
             self.vocab = CategoryMap(list(vals), add_na=self.add_na)
 
     def encodes(self, o):
-        if not all(elem in self.vocab.o2i.keys() for elem in o):
+        if any(elem not in self.vocab.o2i.keys() for elem in o):
             diff = [elem for elem in o if elem not in self.vocab.o2i.keys()]
             diff_str = "', '".join(diff)
             raise KeyError(f"Labels '{diff_str}' were not included in the training dataset")
@@ -305,7 +312,7 @@ class EncodedMultiCategorize(Categorize):
     "Transform of one-hot encoded multi-category that decodes with `vocab`"
     loss_func,order=BCEWithLogitsLossFlat(),1
     def __init__(self, vocab):
-        super().__init__(vocab, sort=vocab==None)
+        super().__init__(vocab, sort=vocab is None)
         self.c = len(vocab)
     def encodes(self, o): return TensorMultiCategory(tensor(o).float())
     def decodes(self, o): return MultiCategory (one_hot_decode(o, self.vocab))

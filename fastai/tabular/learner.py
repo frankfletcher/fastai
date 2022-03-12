@@ -37,5 +37,6 @@ def tabular_learner(dls, layers=None, emb_szs=None, config=None, n_out=None, y_r
 @typedispatch
 def show_results(x:Tabular, y:Tabular, samples, outs, ctxs=None, max_n=10, **kwargs):
     df = x.all_cols[:max_n]
-    for n in x.y_names: df[n+'_pred'] = y[n][:max_n].values
+    for n in x.y_names:
+        df[f'{n}_pred'] = y[n][:max_n].values
     display_df(df)

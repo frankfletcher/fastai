@@ -92,9 +92,9 @@ class Optimizer(_BaseOptimizer):
 
     def load_state_dict(self, sd):
         assert len(sd["hypers"]) == len(self.param_lists)
-        assert len(sd["state"])  == sum([len(pg) for pg in self.param_lists])
+        assert len(sd["state"]) == sum(len(pg) for pg in self.param_lists)
         self.hypers = sd['hypers']
-        self.state = {p: s for p,s in zip(self.all_params().itemgot(0), sd['state'])}
+        self.state = dict(zip(self.all_params().itemgot(0), sd['state']))
 
 # Cell
 def sgd_step(p, lr, **kwargs):

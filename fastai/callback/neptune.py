@@ -50,7 +50,7 @@ class NeptuneCallback(Callback):
             self.experiment.log_metric('batch__smooth_loss', self.learn.smooth_loss)
             self.experiment.log_metric('batch__loss', self.learn.loss)
             self.experiment.log_metric('batch__train_iter', self.learn.train_iter)
-            for i, h in enumerate(self.learn.opt.hypers):
+            for h in self.learn.opt.hypers:
                 for k, v in h.items(): self.experiment.log_metric(f'batch__opt.hypers.{k}', v)
 
     def after_epoch(self):

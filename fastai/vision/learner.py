@@ -17,9 +17,7 @@ def _is_pool_type(l): return re.search(r'Pool[123]d$', l.__class__.__name__)
 def has_pool_type(m):
     "Return `True` if `m` is a pooling layer or has one in its children"
     if _is_pool_type(m): return True
-    for l in m.children():
-        if has_pool_type(l): return True
-    return False
+    return any(has_pool_type(l) for l in m.children())
 
 # Cell
 def _get_first_layer(m):
@@ -193,8 +191,7 @@ def create_unet_model(arch, n_out, img_size, pretrained=True, cut=None, n_in=3, 
     "Create custom unet architecture"
     meta = model_meta.get(arch, _default_meta)
     body = create_body(arch, n_in, pretrained, ifnone(cut, meta['cut']))
-    model = models.unet.DynamicUnet(body, n_out, img_size, **kwargs)
-    return model
+    return models.unet.DynamicUnet(body, n_out, img_size, **kwargs)
 
 # Cell
 @delegates(create_unet_model)

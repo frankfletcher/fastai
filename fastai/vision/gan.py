@@ -139,7 +139,7 @@ class GANTrainer(Callback):
 
     def _set_trainable(self):
         train_model = self.generator if     self.gen_mode else self.critic
-        loss_model  = self.generator if not self.gen_mode else self.critic
+        loss_model = self.critic if self.gen_mode else self.generator
         set_freeze_model(train_model, True)
         set_freeze_model(loss_model, False)
         if self.switch_eval:
@@ -236,8 +236,7 @@ class AdaptiveGANSwitcher(Callback):
         if not self.training: return
         if self.gan_trainer.gen_mode:
             if self.gen_thresh is None or self.loss < self.gen_thresh: self.gan_trainer.switch()
-        else:
-            if self.critic_thresh is None or self.loss < self.critic_thresh: self.gan_trainer.switch()
+        elif self.critic_thresh is None or self.loss < self.critic_thresh: self.gan_trainer.switch()
 
 # Cell
 class GANDiscriminativeLR(Callback):
