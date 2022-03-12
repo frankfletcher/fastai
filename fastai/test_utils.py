@@ -76,22 +76,24 @@ def show_install(show_nvidia_smi:bool=False):
 
     import fastai, platform, fastprogress, fastcore
 
-    rep = []
     opt_mods = []
 
-    rep.append(["=== Software ===", None])
-    rep.append(["python", platform.python_version()])
-    rep.append(["fastai", fastai.__version__])
-    rep.append(["fastcore", fastcore.__version__])
-    rep.append(["fastprogress", fastprogress.__version__])
-    rep.append(["torch",  torch.__version__])
+    rep = list(
+        (
+            ["=== Software ===", None],
+            ["python", platform.python_version()],
+            ["fastai", fastai.__version__],
+            ["fastcore", fastcore.__version__],
+            ["fastprogress", fastprogress.__version__],
+            ["torch", torch.__version__],
+        )
+    )
 
     # nvidia-smi
     smi = nvidia_smi()
     if smi:
-        match = re.findall(r'Driver Version: +(\d+\.\d+)', smi)
-        if match: rep.append(["nvidia driver", match[0]])
-
+        if match := re.findall(r'Driver Version: +(\d+\.\d+)', smi):
+            rep.append(["nvidia driver", match[0]])
     available = "available" if torch.cuda.is_available() else "**Not available** "
     rep.append(["torch cuda", f"{torch.version.cuda} / is {available}"])
 
@@ -103,7 +105,6 @@ def show_install(show_nvidia_smi:bool=False):
 
     rep.append(["\n=== Hardware ===", None])
 
-    gpu_total_mem = []
     nvidia_gpu_cnt = 0
     if smi:
         mem = nvidia_mem()
@@ -114,23 +115,29 @@ def show_install(show_nvidia_smi:bool=False):
     torch_gpu_cnt = torch.cuda.device_count()
     if torch_gpu_cnt:
         rep.append(["torch devices", torch_gpu_cnt])
+        gpu_total_mem = []
         # information for each gpu
-        for i in range(torch_gpu_cnt):
-            rep.append([f"  - gpu{i}", (f"{gpu_total_mem[i]}MB | " if gpu_total_mem else "") + torch.cuda.get_device_name(i)])
+        rep.extend(
+            [
+                f"  - gpu{i}",
+                (f"{gpu_total_mem[i]}MB | " if gpu_total_mem else "")
+                + torch.cuda.get_device_name(i),
+            ]
+            for i in range(torch_gpu_cnt)
+        )
+
+    elif nvidia_gpu_cnt:
+        rep.append([f"Have {nvidia_gpu_cnt} GPU(s), but torch can't use them (check nvidia driver)", None])
     else:
-        if nvidia_gpu_cnt:
-            rep.append([f"Have {nvidia_gpu_cnt} GPU(s), but torch can't use them (check nvidia driver)", None])
-        else:
-            rep.append([f"No GPUs available", None])
+        rep.append(["No GPUs available", None])
 
 
-    rep.append(["\n=== Environment ===", None])
-
-    rep.append(["platform", platform.platform()])
+    rep.extend(
+        (["\n=== Environment ===", None], ["platform", platform.platform()])
+    )
 
     if platform.system() == 'Linux':
-        distro = try_import('distro')
-        if distro:
+        if distro := try_import('distro'):
             # full distro info
             rep.append(["distro", ' '.join(distro.linux_distribution())])
         else:
@@ -138,21 +145,24 @@ def show_install(show_nvidia_smi:bool=False):
             # partial distro info
             rep.append(["distro", platform.uname().version])
 
-    rep.append(["conda env", get_env('CONDA_DEFAULT_ENV')])
-    rep.append(["python", sys.executable])
-    rep.append(["sys.path", "\n".join(sys.path)])
+    rep.extend(
+        (
+            ["conda env", get_env('CONDA_DEFAULT_ENV')],
+            ["python", sys.executable],
+            ["sys.path", "\n".join(sys.path)],
+        )
+    )
 
     print("\n\n```text")
 
-    keylen = max([len(e[0]) for e in rep if e[1] is not None])
+    keylen = max(len(e[0]) for e in rep if e[1] is not None)
     for e in rep:
         print(f"{e[0]:{keylen}}", (f": {e[1]}" if e[1] is not None else ""))
 
     if smi:
         if show_nvidia_smi: print(f"\n{smi}")
-    else:
-        if torch_gpu_cnt: print("no nvidia-smi is found")
-        else: print("no supported gpus found on this system")
+    elif torch_gpu_cnt: print("no nvidia-smi is found")
+    else: print("no supported gpus found on this system")
 
     print("```\n")
 

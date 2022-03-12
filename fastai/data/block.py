@@ -156,7 +156,7 @@ def _find_fail_collate(s):
 @patch
 def summary(self: DataBlock, source, bs=4, show_batch=False, **kwargs):
     "Steps through the transform pipeline for one batch, and optionally calls `show_batch(**kwargs)` on the transient `Dataloaders`."
-    print(f"Setting-up type transforms pipelines")
+    print("Setting-up type transforms pipelines")
     dsets = self.datasets(source, verbose=True)
     print("\nBuilding one sample")
     for tl in dsets.train.tls:
@@ -165,7 +165,7 @@ def summary(self: DataBlock, source, bs=4, show_batch=False, **kwargs):
 
     dls = self.dataloaders(source, bs=bs, verbose=True)
     print("\nBuilding one batch")
-    if len([f for f in dls.train.after_item.fs if f.name != 'noop'])!=0:
+    if [f for f in dls.train.after_item.fs if f.name != 'noop']:
         print("Applying item_tfms to the first sample:")
         s = [_apply_pipeline(dls.train.after_item, dsets.train[0])]
         print(f"\nAdding the next {bs-1} samples")
@@ -174,7 +174,7 @@ def summary(self: DataBlock, source, bs=4, show_batch=False, **kwargs):
         print("No item_tfms to apply")
         s = [dls.train.after_item(dsets.train[i]) for i in range(bs)]
 
-    if len([f for f in dls.train.before_batch.fs if f.name != 'noop'])!=0:
+    if [f for f in dls.train.before_batch.fs if f.name != 'noop']:
         print("\nApplying before_batch to the list of samples")
         s = _apply_pipeline(dls.train.before_batch, s)
     else: print("\nNo before_batch transform to apply")
@@ -189,7 +189,7 @@ def summary(self: DataBlock, source, bs=4, show_batch=False, **kwargs):
         print("Make sure all parts of your samples are tensors of the same size" if why is None else why)
         raise e
 
-    if len([f for f in dls.train.after_batch.fs if f.name != 'noop'])!=0:
+    if [f for f in dls.train.after_batch.fs if f.name != 'noop']:
         print("\nApplying batch_tfms to the batch built")
         b = to_device(b, dls.device)
         b = _apply_pipeline(dls.train.after_batch, b)

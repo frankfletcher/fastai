@@ -186,5 +186,4 @@ class SegmentationDataLoaders(DataLoaders):
                            get_y=label_func,
                            item_tfms=item_tfms,
                            batch_tfms=batch_tfms)
-        res = cls.from_dblock(dblock, fnames, path=path, **kwargs)
-        return res
+        return cls.from_dblock(dblock, fnames, path=path, **kwargs)

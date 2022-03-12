@@ -20,7 +20,7 @@ def make_vocab(count, min_freq=3, max_vocab=60000, special_toks=None):
         if o in vocab: vocab.remove(o)
         vocab.insert(0, o)
     vocab = vocab[:max_vocab]
-    return vocab + [f'xxfake' for i in range(0, 8-len(vocab)%8)]
+    return vocab + ['xxfake' for _ in range(8-len(vocab)%8)]
 
 # Cell
 class TensorText(TensorBase):   pass
@@ -155,7 +155,7 @@ def pad_chunk(x,pad_idx=1, pad_first=True, seq_len=72, pad_len=10):
 @delegates(pad_chunk)
 def pad_input_chunk(samples, n_inp=1,**kwargs):
     "Pad `samples` by adding padding by chunks of size `seq_len`"
-    max_len = max([len(s[n]) for s in samples for n in range(n_inp)])
+    max_len = max(len(s[n]) for s in samples for n in range(n_inp))
     padeds = [[pad_chunk(s[n],pad_len=max_len,**kwargs) for n in range(n_inp) ] for s in samples]
     return [(*p, *s[n_inp:]) for p,s in zip(padeds,samples)]
 
@@ -167,7 +167,9 @@ class Pad_Chunk(DisplayedTransform):
         super().__init__(**kwargs)
     def before_call(self, b):
         "Set `self.max_len` before encodes"
-        self.max_len = max([x.shape[0] for xs in b for x in xs if isinstance(x,TensorText)])
+        self.max_len = max(
+            x.shape[0] for xs in b for x in xs if isinstance(x, TensorText)
+        )
     def __call__(self, b, **kwargs):
         self.before_call(b)
         return super().__call__(tuple(b), **kwargs)

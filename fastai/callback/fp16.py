@@ -83,7 +83,7 @@ def to_model_params(model_pgs, master_pgs, flat_master=False)->None:
 # Cell
 def test_overflow(x):
     s = float(x.float().sum())
-    return (s == float('inf') or s == float('-inf') or s != s)
+    return s == float('inf') or s == float('-inf') or False
 
 # Cell
 def grad_overflow(pgs):

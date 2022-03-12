@@ -91,8 +91,14 @@ def masked_concat_pool(output, mask, bptt):
     avg_pool = output.masked_fill(mask[:, :, None], 0).sum(dim=1)
     avg_pool.div_(lens.type(avg_pool.dtype)[:,None])
     max_pool = output.masked_fill(mask[:,:,None], -float('inf')).max(dim=1)[0]
-    x = torch.cat([output[torch.arange(0, output.size(0)),-last_lens-1], max_pool, avg_pool], 1) #Concat pooling.
-    return x
+    return torch.cat(
+        [
+            output[torch.arange(0, output.size(0)), -last_lens - 1],
+            max_pool,
+            avg_pool,
+        ],
+        1,
+    )
 
 # Cell
 class PoolingLinearClassifier(Module):

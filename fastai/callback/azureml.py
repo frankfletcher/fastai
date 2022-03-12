@@ -50,7 +50,7 @@ class AzureMLCallback(Callback):
         if self.learn.training:
             self._log('batch__loss', self.learn.loss.item())
             self._log('batch__train_iter', self.learn.train_iter)
-            for i, h in enumerate(self.learn.opt.hypers):
+            for h in self.learn.opt.hypers:
                 for k, v in h.items():
                     self._log(f'batch__opt.hypers.{k}', v)
 

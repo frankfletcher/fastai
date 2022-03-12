@@ -143,9 +143,8 @@ def decode_spec_tokens(tokens):
         elif arg is None:
             try:    arg = int(t)
             except: rule = None
-        else:
-            if rule == TK_REP: new_toks.append(t * arg)
-            else:              new_toks += [t] * arg
+        elif rule == TK_REP: new_toks.append(t * arg)
+        else:              new_toks += [t] * arg
     return new_toks
 
 # Cell
@@ -195,17 +194,17 @@ def language_model_learner(dls, arch, config=None, drop_mult=1., backwards=False
     model = get_language_model(arch, len(vocab), config=config, drop_mult=drop_mult)
     meta = _model_meta[arch]
     learn = LMLearner(dls, model, loss_func=CrossEntropyLossFlat(), splitter=meta['split_lm'], **kwargs)
-    url = 'url_bwd' if backwards else 'url'
     if pretrained or pretrained_fnames:
-        if pretrained_fnames is not None:
-            fnames = [learn.path/learn.model_dir/f'{fn}.{ext}' for fn,ext in zip(pretrained_fnames, ['pth', 'pkl'])]
-        else:
+        if pretrained_fnames is None:
+            url = 'url_bwd' if backwards else 'url'
             if url not in meta:
                 warn("There are no pretrained weights for that architecture yet!")
                 return learn
             model_path = untar_data(meta[url] , c_key='model')
             try: fnames = [list(model_path.glob(f'*.{ext}'))[0] for ext in ['pth', 'pkl']]
             except IndexError: print(f'The model in {model_path} is incomplete, download again'); raise
+        else:
+            fnames = [learn.path/learn.model_dir/f'{fn}.{ext}' for fn,ext in zip(pretrained_fnames, ['pth', 'pkl'])]
         learn = learn.load_pretrained(*fnames)
     return learn
 

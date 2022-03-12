@@ -168,7 +168,7 @@ def fine_tune(self:Learner, epochs, base_lr=2e-3, freeze_epochs=1, lr_mult=100,
 class LRFinder(ParamScheduler):
     "Training with exponentially growing learning rate"
     def __init__(self, start_lr=1e-7, end_lr=10, num_it=100, stop_div=True):
-        if num_it < 6: num_it = 6
+        num_it = max(num_it, 6)
         self.scheds = {'lr': [SchedExp(s, e) for (s,e) in zip(start_lr,end_lr)
                              ] if is_listy(start_lr) else SchedExp(start_lr, end_lr)}
         self.num_it,self.stop_div = num_it,stop_div
@@ -214,7 +214,7 @@ def valley(lrs:list, losses:list, num_it:int):
     # find the longest valley
     lds = [1]*n
     for i in range(1,n):
-        for j in range(0,i):
+        for j in range(i):
             if (losses[i] < losses[j]) and (lds[i] < lds[j] + 1):
                 lds[i] = lds[j] + 1
             if lds[max_end] < lds[i]:
@@ -296,7 +296,7 @@ def lr_find(self:Learner, start_lr=1e-7, end_lr=10, num_it=100, stop_div=True, s
             losses = losses[:drop_idx]
         _suggestions, nms = [], []
         for func in tuplify(suggest_funcs):
-            nms.append(func.__name__ if not isinstance(func, partial) else func.func.__name__) # deal with partials
+            nms.append(func.func.__name__ if isinstance(func, partial) else func.__name__)
             _suggestions.append(func(lrs, losses, num_it))
 
         SuggestedLRs = collections.namedtuple('SuggestedLRs', nms)

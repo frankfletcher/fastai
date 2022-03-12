@@ -117,8 +117,8 @@ def _array2tensor(x):
     if x.dtype==np.uint16: x = x.astype(np.float32)
     # windows default numpy int dytpe is int32, while torch tensor default int dtype is int64
     # https://github.com/numpy/numpy/issues/9464
-    if sys.platform == "win32":
-        if x.dtype==np.int: x = x.astype(np.int64)
+    if sys.platform == "win32" and x.dtype == np.int:
+        x = x.astype(np.int64)
     return torch.from_numpy(x)
 
 # Cell
@@ -253,9 +253,7 @@ def to_device(b, device=None, non_blocking=False):
     if defaults.use_cuda==False: device='cpu'
     elif device is None: device=default_device()
     def _inner(o):
-        if isinstance(o,Tensor): return o.to(device, non_blocking=non_blocking)
-#         if hasattr(o, "to_device"): return o.to_device(device)
-        return o
+        return o.to(device, non_blocking=non_blocking) if isinstance(o,Tensor) else o
     return apply(_inner, b)
 
 # Cell
@@ -277,8 +275,9 @@ def to_concat(xs, dim=0):
     #We may receive xs that are not concatenable (inputs of a text classifier for instance),
     #   in this case we return a big list
     try:    return retain_type(torch.cat(xs, dim=dim), xs[0])
-    except: return sum([L(retain_type(o_.index_select(dim, tensor(i)).squeeze(dim), xs[0])
-                          for i in range_of(o_)) for o_ in xs], L())
+    except:
+        return sum((L(retain_type(o_.index_select(dim, tensor(i)).squeeze(dim), xs[0])
+                          for i in range_of(o_)) for o_ in xs), L())
 
 # Cell
 @patch
@@ -430,8 +429,7 @@ def concat(*ls):
     elif isinstance(it,ndarray): res = np.concatenate(ls)
     else:
         res = itertools.chain.from_iterable(map(L,ls))
-        if isinstance(it,(tuple,list)): res = type(it)(res)
-        else: res = L(res)
+        res = type(it)(res) if isinstance(it,(tuple,list)) else L(res)
     return retain_type(res, it)
 
 # Cell
@@ -452,7 +450,7 @@ class Chunks:
         st_d,st_i = self.doc_idx(ifnone(i.start,0))
         en_d,en_i = self.doc_idx(ifnone(i.stop,self.totlen+1))
         res = [self.chunks[st_d][st_i:(en_i if st_d==en_d else sys.maxsize)]]
-        for b in range(st_d+1,en_d): res.append(self.chunks[b])
+        res.extend(self.chunks[b] for b in range(st_d+1,en_d))
         if st_d!=en_d and en_d<len(self.chunks): res.append(self.chunks[en_d][:en_i])
         return concat(*res)
 
@@ -607,7 +605,7 @@ def one_hot_decode(x, vocab=None):
 # Cell
 def params(m):
     "Return all parameters of `m`"
-    return [p for p in m.parameters()]
+    return list(m.parameters())
 
 # Cell
 def trainable_params(m):
@@ -628,10 +626,10 @@ def norm_bias_params(m, with_bias=True):
 # Cell
 def batch_to_samples(b, max_n=10):
     "'Transposes' a batch to (at most `max_n`) samples"
-    if isinstance(b, Tensor): return retain_types(list(b[:max_n]), [b])
-    else:
-        res = L(b).map(partial(batch_to_samples,max_n=max_n))
-        return retain_types(res.zip(), [b])
+    if isinstance(b, Tensor):
+        if isinstance(b, Tensor): return retain_types(list(b[:max_n]), [b])
+    res = L(b).map(partial(batch_to_samples,max_n=max_n))
+    return retain_types(res.zip(), [b])
 
 # Cell
 @patch
@@ -742,7 +740,7 @@ def show_image_batch(b, show=show_titled_image, items=9, cols=3, figsize=None, *
 def requires_grad(m):
     "Check if the first parameter of `m` requires grad or not"
     ps = list(m.parameters())
-    return ps[0].requires_grad if len(ps)>0 else False
+    return ps[0].requires_grad if ps else False
 
 # Cell
 def init_default(m, func=nn.init.kaiming_normal_):

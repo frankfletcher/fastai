@@ -46,9 +46,13 @@ _collate_types = (ndarray, Tensor, typing.Mapping, str)
 def fa_collate(t):
     "A replacement for PyTorch `default_collate` which maintains types and handles `Sequence`s"
     b = t[0]
-    return (default_collate(t) if isinstance(b, _collate_types)
-            else type(t[0])([fa_collate(s) for s in zip(*t)]) if isinstance(b, Sequence)
-            else default_collate(t))
+    return (
+        default_collate(t)
+        if isinstance(b, _collate_types)
+        else type(b)([fa_collate(s) for s in zip(*t)])
+        if isinstance(b, Sequence)
+        else default_collate(t)
+    )
 
 # Cell
 def fa_convert(t):
@@ -144,7 +148,8 @@ class DataLoader(GetAttr):
     def do_batch(self, b): return self.retain(self.create_batch(self.before_batch(b)), b)
     def to(self, device): self.device = device
     def one_batch(self):
-        if self.n is not None and len(self)==0: raise ValueError(f'This DataLoader does not contain any batches')
+        if self.n is not None and len(self)==0:
+            raise ValueError('This DataLoader does not contain any batches')
         with self.fake_l.no_multiproc(): res = first(self)
         if hasattr(self, 'it'): delattr(self, 'it')
         return res

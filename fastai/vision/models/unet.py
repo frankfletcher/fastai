@@ -10,8 +10,9 @@ from ...callback.hook import *
 def _get_sz_change_idxs(sizes):
     "Get the indexes of the layers where the size of the activation changes."
     feature_szs = [size[-1] for size in sizes]
-    sz_chg_idxs = list(np.where(np.array(feature_szs[:-1]) != np.array(feature_szs[1:]))[0])
-    return sz_chg_idxs
+    return list(
+        np.where(np.array(feature_szs[:-1]) != np.array(feature_szs[1:]))[0]
+    )
 
 # Cell
 class UnetBlock(Module):

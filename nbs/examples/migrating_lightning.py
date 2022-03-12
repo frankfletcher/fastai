@@ -39,6 +39,5 @@ class LitModel(LightningModule):
     def val_dataloader(self):
         # TODO: do a real train/val split
         dataset = MNIST(os.getcwd(), train=False, download=True, transform=transforms.ToTensor())
-        loader = DataLoader(dataset, batch_size=32, num_workers=4)
-        return loader
+        return DataLoader(dataset, batch_size=32, num_workers=4)
 

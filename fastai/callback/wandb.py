@@ -25,7 +25,10 @@ class WandbCallback(Callback):
             raise ValueError('You must call wandb.init() before WandbCallback()')
         # W&B log step
         self._wandb_step = wandb.run.step - 1  # -1 except if the run has previously logged data (incremented at each batch)
-        self._wandb_epoch = 0 if not(wandb.run.step) else math.ceil(wandb.run.summary['epoch']) # continue to next epoch
+        self._wandb_epoch = (
+            math.ceil(wandb.run.summary['epoch']) if wandb.run.step else 0
+        )
+
         store_attr('log,log_preds,log_model,log_dataset,dataset_name,valid_dl,n_preds,seed,reorder')
 
     def before_fit(self):
@@ -137,7 +140,8 @@ def gather_args(self:Learner):
         args['n_inp'] = n_inp
         xb = self.dls.valid.one_batch()[:n_inp]
         args.update({f'input {n+1} dim {i+1}':d for n in range(n_inp) for i,d in enumerate(list(detuplify(xb[n]).shape))})
-    except: print(f'Could not gather input dimensions')
+    except:
+        print('Could not gather input dimensions')
     # other useful information
     with ignore_exceptions():
         args['batch size'] = self.dls.bs
@@ -270,7 +274,8 @@ def wandb_process(x:TensorText, y:(TensorCategory,TensorMultiCategory), samples,
 @typedispatch
 def wandb_process(x:Tabular, y:Tabular, samples, outs):
     df = x.all_cols
-    for n in x.y_names: df[n+'_pred'] = y[n].values
+    for n in x.y_names:
+        df[f'{n}_pred'] = y[n].values
     return {"Prediction Samples": wandb.Table(dataframe=df)}
 
 # Cell

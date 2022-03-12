@@ -60,8 +60,11 @@ def is_coll(o):
 
 def all_equal(a,b):
     "Compares whether `a` and `b` are the same length and have the same contents"
-    if not is_iter(b): return False
-    return all(equals(a_,b_) for a_,b_ in itertools.zip_longest(a,b))
+    return (
+        all(equals(a_, b_) for a_, b_ in itertools.zip_longest(a, b))
+        if is_iter(b)
+        else False
+    )
 
 def noop (x=None, *args, **kwargs):
     "Do nothing"

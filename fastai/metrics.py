@@ -391,7 +391,8 @@ class CorpusBLEUMetric(Metric):
         def __eq__(self, other):
             if len(self.ngram) != len(other.ngram): return False
             return np.all(np.array(self.ngram) == np.array(other.ngram))
-        def __hash__(self): return int(sum([o * self.max_n**i for i,o in enumerate(self.ngram)]))
+        def __hash__(self):
+            return int(sum(o * self.max_n**i for i,o in enumerate(self.ngram)))
 
     def get_grams(self, x, n, max_n=5000):
         return x if n==1 else [self.NGram(x[i:i+n], max_n=max_n) for i in range(len(x)-n+1)]
@@ -399,24 +400,24 @@ class CorpusBLEUMetric(Metric):
     def get_correct_ngrams(self, pred, targ, n, max_n=5000):
         pred_grams,targ_grams = self.get_grams(pred, n, max_n=max_n),self.get_grams(targ, n, max_n=max_n)
         pred_cnt,targ_cnt = Counter(pred_grams),Counter(targ_grams)
-        return sum([min(c, targ_cnt[g]) for g,c in pred_cnt.items()]),len(pred_grams)
+        return sum(min(c, targ_cnt[g]) for g,c in pred_cnt.items()), len(pred_grams)
 
     def accumulate(self, learn):
-        if learn.training: return None
-        else:
-            last_output = learn.pred.argmax(dim=self.axis)
-            last_target = learn.y
-            for pred,targ in zip(last_output.cpu().numpy(),last_target.cpu().numpy()):
-                self.pred_len += len(pred)
-                self.targ_len += len(targ)
-                smooth_mteval = 1
-                for i in range(4):
-                    c,t = self.get_correct_ngrams(pred, targ, i+1, max_n=self.vocab_sz)
-                    if c == 0:
-                        smooth_mteval *= 2
-                        c = 1 / smooth_mteval    # exp smoothing, method 3 from http://acl2014.org/acl2014/W14-33/pdf/W14-3346.pdf
-                    self.corrects[i] += c
-                    self.counts[i]   += t
+        if learn.training:
+            if learn.training: return None
+        last_output = learn.pred.argmax(dim=self.axis)
+        last_target = learn.y
+        for pred,targ in zip(last_output.cpu().numpy(),last_target.cpu().numpy()):
+            self.pred_len += len(pred)
+            self.targ_len += len(targ)
+            smooth_mteval = 1
+            for i in range(4):
+                c,t = self.get_correct_ngrams(pred, targ, i+1, max_n=self.vocab_sz)
+                if c == 0:
+                    smooth_mteval *= 2
+                    c = 1 / smooth_mteval    # exp smoothing, method 3 from http://acl2014.org/acl2014/W14-33/pdf/W14-3346.pdf
+                self.corrects[i] += c
+                self.counts[i]   += t
 
     @property
     def value(self):
